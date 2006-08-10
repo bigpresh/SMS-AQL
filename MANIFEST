@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/Net-AQSMS-Send.t
+lib/Net/AQSMS/Send.pm
