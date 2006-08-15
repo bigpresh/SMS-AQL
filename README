@@ -1,16 +1,16 @@
 Net-AQSMS-Send version 0.01
 ===========================
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+Net::AQSMS::Send is a simple module which provides a clean
+object-oriented interface to allow sending of SMS text messages
+to mobile phones using the HTTP gateway from AQL (www.aql.com).
 
-A README file is required for CPAN modules since CPAN extracts the
-README file from a module distribution so that people browsing the
-archive can use it get an idea of the modules uses. It is usually a
-good idea to provide version information here so that people can
-decide whether fixes for the module are worth downloading.
+In order to use AQL's gateway, you will need to get an account
+with them (free), and purchase some credits (not free obviously).
+
+Note, I have no connection to AQL other than being a user of their
+services.  I started writing this module for myself, then thought 
+I should do the Right Thing and release it to CPAN.
 
 INSTALLATION
 
@@ -25,11 +25,9 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  blah blah blah
+  LWP
 
 COPYRIGHT AND LICENCE
-
-Put the correct copyright and licence information here.
 
 Copyright (C) 2006 by David Precious
 
@@ -38,3 +36,4 @@ it under the same terms as Perl itself, either Perl version 5.8.7 or,
 at your option, any later version of Perl 5 you may have available.
 
 
+$Id$

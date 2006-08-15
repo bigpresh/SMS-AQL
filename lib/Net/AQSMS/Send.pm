@@ -1,5 +1,12 @@
 package Net::AQSMS::Send;
 
+# Send text messages via AQL's gateway
+#
+# David Precious, davidp@preshweb.co.uk
+#
+# $Id$
+
+
 use 5.008007;
 
 use strict;
@@ -10,10 +17,6 @@ use HTTP::Request;
 
 
 our $VERSION = '0.01';
-
-
-# $Id$
-
 
 =head1 NAME
 
