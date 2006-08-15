@@ -1,4 +1,4 @@
-package Net::AQSMS::Send;
+package SMS::AQL;
 
 # Send text messages via AQL's gateway
 #
@@ -20,11 +20,11 @@ our $VERSION = '0.01';
 
 =head1 NAME
 
-Net::AQSMS::Send - Perl extension to send SMS text messages via AQ's SMS service
+SMS::AQL - Perl extension to send SMS text messages via AQ's SMS service
 
 =head1 SYNOPSIS
 
-  $sender = new Net::AQSMS::Send;
+  $sender = new SMS::AQL;
   
 
 =head1 DESCRIPTION
@@ -46,7 +46,7 @@ sub new {
     }
 
     my $self = bless { contents => {} } => 
-        ($package || 'Net::AQSMS::Send');
+        ($package || 'SMS::AQL');
 
     ($self->{user}, $self->{pass}) = ($user, $pass);
 
@@ -168,18 +168,12 @@ __END__
 
 =head1 SEE ALSO
 
-Mention other useful documentation such as the documentation of
-related modules or operating system documentation (such as man pages
-in UNIX), or any relevant external documentation such as RFCs or
-standards.
+http://www.aql.com/
 
-If you have a mailing list set up for your module, mention it here.
-
-If you have a web site set up for your module, mention it here.
 
 =head1 AUTHOR
 
-David Precious, E<lt>davidp@slackware.lanE<gt>
+David Precious, E<lt>davidp@preshweb.co.ukE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 

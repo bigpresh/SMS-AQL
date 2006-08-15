@@ -2,5 +2,5 @@ Changes
 Makefile.PL
 MANIFEST
 README
-t/Net-AQSMS-Send.t
-lib/Net/AQSMS/Send.pm
+t/SMS-AQL.t
+lib/SMS/AQL.pm

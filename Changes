@@ -1,6 +1,9 @@
-Revision history for Perl extension Net::AQSMS::Send.
+Revision history for Perl extension SMS::AQL.
 
 0.01  Thu Aug 10 22:13:16 2006
-	- original version; created by h2xs 1.23 with options
-		-AXc -n Net::AQSMS::Send
+development starts... pre-alpha version started life as
+Net::AQSMS::Send, name SMS::AQL was then agreed after
+brief discussion with modules@perl.org guys, Brian in
+particular - thanks for your input Brian.
+
 
