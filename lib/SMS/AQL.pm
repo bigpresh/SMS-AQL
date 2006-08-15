@@ -14,7 +14,7 @@ use warnings;
 
 use LWP::UserAgent;
 use HTTP::Request;
-
+use Data::Dumper; # TODO: take out when done with diagnostics
 
 our $VERSION = '0.01';
 
@@ -24,13 +24,42 @@ SMS::AQL - Perl extension to send SMS text messages via AQ's SMS service
 
 =head1 SYNOPSIS
 
-  $sender = new SMS::AQL;
+  # create an instance of SMS::AQL, passing it your AQL username
+  # and password (if you do not have a username and password, 
+  # register at www.aql.com first).
+  
+  $sms = new SMS::AQL(
+    username => 'username',
+    password => 'password'
+  );
+
+  # extra parameters can be passed like so:
+  $sms = new SMS::AQL(
+    username => 'username',
+    password => 'password',
+    options => { sender => '+4471234567' }
+  );
+  
+
   
 
 =head1 DESCRIPTION
 
-Provides a nice object-oriented interface to send SMS text messages
-using the HTTP gateway provided by AQ Ltd (www.aql.com) in the UK.
+SMS::AQL provides a nice object-oriented interface to send SMS text
+messages using the HTTP gateway provided by AQ Ltd (www.aql.com) in 
+the UK.
+
+It supports concatenated text messages (over the 160-character limit
+of normal text messages, achieved by sending multiple messages with
+a header to indicate that they are part of one message (this is
+handset-dependent, but supported by all reasonably new mobiles).
+
+
+
+=head1 INITIALISATION
+
+You must create an instance of SMS::AQL, passing it the username and
+password of your AQL account.
 
 
 =cut
@@ -38,24 +67,36 @@ using the HTTP gateway provided by AQ Ltd (www.aql.com) in the UK.
 
 sub new {
 
-    my ($package, $user, $pass) = @_;
+    my $package = shift;
+    my %params = @_;
 
-    if (!$user || !$pass) {
-        warn 'Must supply username, password and password';
-        return undef;
-    }
+    print "params:\n";
+    print Dumper(\%params);
+    print "\n";
+    exit;
+    
+     if (!$params{username} || !$params{password}) {
+         warn 'Must supply username and password';
+         return undef;
+     }
 
     my $self = bless { contents => {} } => 
         ($package || 'SMS::AQL');
 
-    ($self->{user}, $self->{pass}) = ($user, $pass);
-
+    # get an LWP user agent ready
     $self->{ua} = new LWP::UserAgent;
+    $self->{ua}->agent("SMS::AQL/$VERSION");
+    
+    ($self->{user}, $self->{pass}) = 
+        ($params{'username'}, $params{'password'});
 
     return $self;	
 }
 
 
+=head1 METHODS
+
+=over
 
 =item send_sms($to, $message [, \%params])
 
@@ -66,8 +107,30 @@ $to can be an array passed by reference, in which case
 the message will sent to each number in the array with one
 call to AQ's multiple message gateway... this is much more
 efficient than calling send_sms() once for every recipient,
-but means that you do not know which of the messages sent
-successfully and which didn't.
+however the drawback is that you will not know which
+messages suceeded and which failed, only the count of how
+many were sucessful.
+
+However, if you use the delivery_notification_url option
+(see below) you can receive notification when each message
+is either sucessfully delivered or rejected.
+
+Examples:
+    
+  # sending a single message:
+  if ($sms->send_sms('+44123456789012', $message)) {
+    print "Sent message successfully";
+  }
+
+
+  # sending a message to multiple recipients:
+  my @recipients = qw(+44123456789012 +44123456789013);
+  my $num_sent = $sms->send_sms(\@recipients, 'My Message');
+  
+  # $num_sent is the number of messages which were sucessfully
+  sent
+
+
 
 =cut
 
@@ -79,13 +142,20 @@ my ($self, $to, $text, $opts) = @_;
 print "to:$to\n";
 my $to_num;
 if (ref $to eq 'ARRAY') {
-    # multiple recipients:
-    map { $_ = $self->_canonical_number($_) } @{$to};
-    $to_num = join ',', @{$to};
+    # multiple recipients
+    my @recipients = @$to;
 } else {
-    # normal, single-recipient mode
-    $to_num = $self->_canonical_number($to);
+    # single recipient, to simplify the
+    # code we'll whack it in an array as
+    # a single item.
+    my @recipients = ($to);
 }
+
+
+#
+map { $_ = $self->_canonical_number($_) } @{$to};
+    $to_num = join ',', @{$to};
+
 
 
 my @servers = ('gw1.sms2email.com', 'gw11.sms2email.com',
@@ -142,6 +212,46 @@ return 'FAIL|NOSERVERS';
 
 
 
+=item last_result()
+
+Returns the last result code received from the AQL
+gateway.
+
+Possible codes are:
+
+=over
+
+=item AQSMS-NOAUTHDETAILS
+
+The username and password were not supplied
+
+=item AQSMS-AUTHERROR
+
+The username and password supplied were incorrect
+
+=item AQSMS-NOCREDIT
+
+The account specified did not have sufficient credit
+
+=item AQSMS-OK
+
+The message was queued on our system successfully
+
+=item AQSMS-NOMSG
+
+No message or no destination number were supplied
+
+=back
+
+=cut
+
+sub last_error {
+
+    shift->{last_error}
+
+
+} 
+
 
 # fix up the number
 sub _canonical_number {
@@ -164,6 +274,8 @@ sub _canonical_number {
 1;
 __END__
 
+
+=back
 
 
 =head1 SEE ALSO
