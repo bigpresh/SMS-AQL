@@ -1,6 +1,6 @@
 package SMS::AQL;
 
-# Send text messages via AQL's gateway
+# SMS::AQL - Sends text messages via AQL's gateway
 #
 # David Precious, davidp@preshweb.co.uk
 #
@@ -40,6 +40,18 @@ SMS::AQL - Perl extension to send SMS text messages via AQ's SMS service
     options => { sender => '+4471234567' }
   );
   
+  # send an SMS:
+  
+  $sms->send_sms($to, $msg) || die;
+  
+  # called in list context, we can see what went wrong:
+  my ($ok, $why) = $sms->send_sms($to, $msg);
+  if (!$ok) {
+      print "Failed, error was: $why\n";
+  }
+  
+  # params for this send operation only can be supplied:
+  $sms->send_sms($to, $msg, { sender => 'bob the builder' });
 
   
 
@@ -59,7 +71,10 @@ handset-dependent, but supported by all reasonably new mobiles).
 =head1 INITIALISATION
 
 You must create an instance of SMS::AQL, passing it the username and
-password of your AQL account.
+password of your AQL account:
+
+
+  $sms = new SMS::AQL( username => 'fred', password => 'bloggs' );
 
 
 =cut
@@ -67,15 +82,9 @@ password of your AQL account.
 
 sub new {
 
-    my $package = shift;
-    my %params = @_;
+    my ($package, $params) = @_;
 
-    print "params:\n";
-    print Dumper(\%params);
-    print "\n";
-    exit;
-    
-     if (!$params{username} || !$params{password}) {
+     if (!$params->{username} || !$params->{password}) {
          warn 'Must supply username and password';
          return undef;
      }
@@ -87,9 +96,14 @@ sub new {
     $self->{ua} = new LWP::UserAgent;
     $self->{ua}->agent("SMS::AQL/$VERSION");
     
+    # remember the username and password
     ($self->{user}, $self->{pass}) = 
-        ($params{'username'}, $params{'password'});
-
+        ($params->{'username'}, $params->{'password'});
+    
+    # the list of servers we can try:
+    $self->{servers} = ['gw1.sms2email.com', 'gw11.sms2email.com',
+                'gw2.sms2email.com', 'gw22.sms2email.com'];
+        
     return $self;	
 }
 
@@ -103,110 +117,79 @@ sub new {
 Sends the message $message to the number $to, optionally
 using the parameters supplied as a hashref.
 
-$to can be an array passed by reference, in which case
-the message will sent to each number in the array with one
-call to AQ's multiple message gateway... this is much more
-efficient than calling send_sms() once for every recipient,
-however the drawback is that you will not know which
-messages suceeded and which failed, only the count of how
-many were sucessful.
+If called in scalar context, returns 1 if the message was
+sent, 0 if it wasn't.
 
-However, if you use the delivery_notification_url option
-(see below) you can receive notification when each message
-is either sucessfully delivered or rejected.
+If called in list context, returns a two-element list, the
+first element being 1 for success or 0 for fail, and the second
+being a message indicating why the message send operation
+failed.
+
 
 Examples:
     
-  # sending a single message:
   if ($sms->send_sms('+44123456789012', $message)) {
-    print "Sent message successfully";
+      print "Sent message successfully";
   }
-
-
-  # sending a message to multiple recipients:
-  my @recipients = qw(+44123456789012 +44123456789013);
-  my $num_sent = $sms->send_sms(\@recipients, 'My Message');
   
-  # $num_sent is the number of messages which were sucessfully
-  sent
-
-
-
+  my ($ok, $msg) = $sms->send_sms($to, $msg);
+  if (!$ok) {
+      print "Failed to send the message, error: $msg\n";
+  }
+  
 =cut
 
 sub send_sms {
 # send the greeting to the number specified.  Returns true on success, false
 # if it fails (due to a HTTP request failing, or the SMS gateway saying no)
 
-my ($self, $to, $text, $opts) = @_;
-print "to:$to\n";
-my $to_num;
-if (ref $to eq 'ARRAY') {
-    # multiple recipients
-    my @recipients = @$to;
-} else {
-    # single recipient, to simplify the
-    # code we'll whack it in an array as
-    # a single item.
-    my @recipients = ($to);
-}
+    my ($self, $to, $text, $opts) = @_;
 
-
-#
-map { $_ = $self->_canonical_number($_) } @{$to};
-    $to_num = join ',', @{$to};
-
-
-
-my @servers = ('gw1.sms2email.com', 'gw11.sms2email.com',
-               'gw2.sms2email.com', 'gw22.sms2email.com');
-
-my %postdata = (
-    'username' => $self->{user}, 
-    'password' => $self->{pass},
-    'orig'     => $self->{orig_num}, 
-    'to_num'   => $to_num,
-    'message'  => $text
-);
-
-	
-# try the request to each sever in turn, stop as soon as one succeeds.
-while (my $server = shift @servers)
-	{
-	
-	my $script =  (ref $to eq 'ARRAY')? 
-        'postmsg-multi.php' : 'postmsg.php';
+    # assemble the data we need to POST to the server:
+    my %postdata = (
+        'username' => $self->{user}, 
+        'password' => $self->{pass},
+        'orig'     => $opts->{sender} || $self->{sender}, 
+        'to_num'   => $to,
+        'message'  => $text
+    );
     
-    print "I'm going to post to $script, to is $to_num, to is a " . ref($to) . "\n";
-    exit;
-	my $response = $self->{ua}->post("http://$server/sms/$script",
-		\%postdata);
-
-	next unless ($response->is_success);  # try next server if we failed.
-
-	my $resp = $response->content;
-
-	for ($resp)
-		{
-		if (/AQSMS-OK/ig)
-			{
-			# the aqsms gateway, he say YES
-			return "OK|OK";
-			} elsif (/AQSMS-NOCREDIT/) {
-			# uh-oh, we're out of credit!
-			return "FAIL|NOCREDIT";
-			} else {
-			# didn't recognise the response
-			return "FAIL|Unrecognised AQSMS response ($resp)";
-			}
-		}
-
-	} # end of while loop through servers
-	
-# if we reach this point without returning, then we tried all 4 SMS gateway
-# servers and couldn't connect to any of them - this is pretty unlikely, if
-# it does happen it's almost certainly our own connectivity that's gone!
-return 'FAIL|NOSERVERS';
+        
+    # try the request to each sever in turn, stop as soon as one succeeds.
+    while (my $server = shift @{$self->{servers}})
+        {
+        
+        my $response = $self->{ua}->post("http://$server/sms/postmsg.php",
+            \%postdata);
+    
+        next unless ($response->is_success);  # try next server if we failed.
+    
+        my $resp = $response->content;
+    
+        for ($resp)
+            {
+            if (/AQSMS-OK/ig)
+                {
+                # the aqsms gateway, he say YES
+                return wantarray?
+                    1 : (1, 'OK');
+                } elsif (/AQSMS-NOCREDIT/) {
+                # uh-oh, we're out of credit!
+                return wantarray?
+                    0 : (0, 'Out of credits');
+                } else {
+                # didn't recognise the response
+                return wantarray?
+                    0 : (0, 'Unrecognised response from server');
+                }
+            }
+    
+        } # end of while loop through servers
+        
+    # if we reach this point without returning, then we tried all 4 SMS gateway
+    # servers and couldn't connect to any of them - this is pretty unlikely, if
+    # it does happen it's almost certainly our own connectivity that's gone!
+    return 'FAIL|NOSERVERS';
 	
 } # end of sub send_sms
 

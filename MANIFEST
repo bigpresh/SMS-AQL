@@ -2,5 +2,6 @@ Changes
 Makefile.PL
 MANIFEST
 README
+TODO
 t/SMS-AQL.t
 lib/SMS/AQL.pm
