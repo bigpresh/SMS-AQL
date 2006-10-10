@@ -9,8 +9,6 @@
 my $test_user = 'sms-aql-test';
 my $test_pass = 'sms-aql-test';
 
-$test_user = 'davidp';
-$test_pass = 'mE821805dP';
 use warnings;
 use lib './lib/';
 use SMS::AQL;
