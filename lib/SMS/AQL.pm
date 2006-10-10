@@ -177,8 +177,6 @@ sub send_sms {
         # version out the door.
         $self->{last_response} = $resp;
         
-        print wantarray? 'list context' : 'scalar context';
-        
         for ($resp)
             {
             if (/AQSMS-OK/)
