@@ -6,4 +6,8 @@ Net::AQSMS::Send, name SMS::AQL was then agreed after
 brief discussion with modules@perl.org guys, Brian in
 particular - thanks for your input Brian.
 
+Initial version is quite limited, but tested and works
+well for me.  Not tested with non-UK destination numbers.
+
+
 

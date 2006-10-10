@@ -13,10 +13,7 @@ use warnings;
 my $test_user = 'sms-aql-test';
 my $test_pass = 'sms-aql-test';
 
-my $test_to = '07884005261';
-
 use Test::More qw(no_plan);
-
 
 use lib '../lib/';
 use_ok('SMS::AQL');
@@ -29,10 +26,37 @@ ok(my $sender = new SMS::AQL({username => $test_user, password => $test_pass}),
 ok(ref $sender eq 'SMS::AQL', 
     '$sender is an instance of SMS::AQL');
     
+# have to send it to STDERR, as Test::Harness swallows our STDOUT...
+print STDERR qq[
+To properly test SMS::AQL, I need a test number to send a text message to.
+Please supply a mobile number, and I will try to send a text message to it.
+If you'd rather not and wish to skip the tests, just leave it blank (or
+enter any "non-true" value).
 
-#ok($sender->send_sms($test_to, 'Test message sent with SMS::AQL'),
-#    'Sent a test SMS to single recipient');
+Mobile number: ?> ];
+
+my $test_to = <>;
+
+
+# OK, a little crufty here with the double skip blocks, but we want
+# to skip the sending test if the destination number isn't given, and 
+# also if the result of the send attempt is out of credit, we want to
+# skip rather than fail.
+my ($ok, $why);
+SKIP: {
+print STDERR "sendto: $test_to\n"; die;
+    skip "No destination number given" unless $test_to;
     
-ok($sender->send_sms($test_to, 'Test message sent with SMS::AQL', 
-    { sender => 'bob the builder' }),
-    'Sent a test SMS to single recipient');
+    # now call in list context to check it definately worked:
+    ($ok, $why) = $sender->send_sms($test_to, 'Second test with SMS::AQL, ' .
+                                    'send_sms() in list context',
+                                    { sender => 'SMS::AQL' });
+    
+    SKIP: {
+        skip "No credit in testing account" if $why eq 'Out of credits';
+        skip "Invalid destination entered"  if $why eq 'Invalid destination';
+        is($why, 'OK', 'Test message sent OK');          
+    }
+
+}
+    

@@ -103,6 +103,9 @@ sub new {
     # the list of servers we can try:
     $self->{servers} = ['gw1.sms2email.com', 'gw11.sms2email.com',
                 'gw2.sms2email.com', 'gw22.sms2email.com'];
+                
+    # remember the last server response we saw:
+    $self->{last_response} = '';
         
     return $self;	
 }
@@ -144,6 +147,8 @@ sub send_sms {
 # if it fails (due to a HTTP request failing, or the SMS gateway saying no)
 
     my ($self, $to, $text, $opts) = @_;
+    
+    $to =~ s/[^0-9+]//xms;
 
     # assemble the data we need to POST to the server:
     my %postdata = (
@@ -151,7 +156,7 @@ sub send_sms {
         'password' => $self->{pass},
         'orig'     => $opts->{sender} || $self->{sender}, 
         'to_num'   => $to,
-        'message'  => $text
+        'message'  => $text,
     );
     
         
@@ -166,21 +171,32 @@ sub send_sms {
     
         my $resp = $response->content;
     
+        # this code wasn't too bad to start with but has now bloated into
+        # cruftitude... will refactor this into a half decent lookup table
+        # in the next version, but it works for now, to get the initial
+        # version out the door.
+        $self->{last_response} = $resp;
+        
+        print wantarray? 'list context' : 'scalar context';
+        
         for ($resp)
             {
-            if (/AQSMS-OK/ig)
+            if (/AQSMS-OK/)
                 {
                 # the aqsms gateway, he say YES
                 return wantarray?
-                    1 : (1, 'OK');
+                    (1, 'OK') : 1;
                 } elsif (/AQSMS-NOCREDIT/) {
                 # uh-oh, we're out of credit!
                 return wantarray?
-                    0 : (0, 'Out of credits');
+                    (0, 'Out of credits') : 0;
+                } elsif (/AQSMS-INVALID_DESTINATION/) {
+                return wantarray?
+                    (0, 'Invalid destination') : 0;
                 } else {
                 # didn't recognise the response
                 return wantarray?
-                    0 : (0, 'Unrecognised response from server');
+                    (0, 'Unrecognised response from server') : 0;
                 }
             }
     
@@ -269,6 +285,9 @@ http://www.aql.com/
 =head1 AUTHOR
 
 David Precious, E<lt>davidp@preshweb.co.ukE<gt>
+
+All bug reports, feature requests, patches etc welcome.
+
 
 =head1 COPYRIGHT AND LICENSE
 

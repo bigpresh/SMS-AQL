@@ -3,5 +3,7 @@ Makefile.PL
 MANIFEST
 README
 TODO
+example.pl
 t/SMS-AQL.t
 lib/SMS/AQL.pm
+META.yml                                 Module meta-data (added by MakeMaker)
