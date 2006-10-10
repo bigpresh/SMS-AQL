@@ -44,7 +44,6 @@ my $test_to = <>;
 # skip rather than fail.
 my ($ok, $why);
 SKIP: {
-print STDERR "sendto: $test_to\n"; die;
     skip "No destination number given" unless $test_to;
     
     # now call in list context to check it definately worked:
