@@ -47,8 +47,8 @@ SKIP: {
     skip "No destination number given" unless $test_to;
     
     # now call in list context to check it definately worked:
-    ($ok, $why) = $sender->send_sms($test_to, 'Second test with SMS::AQL, ' .
-                                    'send_sms() in list context',
+    ($ok, $why) = $sender->send_sms($test_to, 'Test message from SMS::AQL ' .
+                                    'test suite',
                                     { sender => 'SMS::AQL' });
     
     SKIP: {

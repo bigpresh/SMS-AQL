@@ -1,6 +1,18 @@
 Revision history for Perl extension SMS::AQL.
 
-0.01  Thu Aug 10 22:13:16 2006
+0.02  04/01/2007
+Fix stupid, stupid bug #24201 - don't remove servers
+from the list of servers, unless we fail to send a
+message.  Previously, each instance of SMS::AQL could
+only send 4 messages in a row before starting to fail.
+Obviously, passed all tests, only showed up in real
+usage.  Wibble.  Also some minor style problems
+cleared up.
+
+Important: constructor now takes a hashref of params to
+provide for future expansion needs.
+
+0.01  10/08/2006
 development starts... pre-alpha version started life as
 Net::AQSMS::Send, name SMS::AQL was then agreed after
 brief discussion with modules@perl.org guys, Brian in
@@ -11,3 +23,4 @@ well for me.  Not tested with non-UK destination numbers.
 
 
 
+$Id$

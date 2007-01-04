@@ -14,9 +14,9 @@ use warnings;
 
 use LWP::UserAgent;
 use HTTP::Request;
-use Data::Dumper; # TODO: take out when done with diagnostics
 
-our $VERSION = '0.01';
+
+our $VERSION = '0.02';
 
 =head1 NAME
 
@@ -28,17 +28,17 @@ SMS::AQL - Perl extension to send SMS text messages via AQ's SMS service
   # and password (if you do not have a username and password, 
   # register at www.aql.com first).
   
-  $sms = new SMS::AQL(
+  $sms = new SMS::AQL({
     username => 'username',
     password => 'password'
-  );
+  });
 
-  # extra parameters can be passed like so:
-  $sms = new SMS::AQL(
+  # default parameters can be passed like so:
+  $sms = new SMS::AQL({
     username => 'username',
     password => 'password',
     options => { sender => '+4471234567' }
-  );
+  });
   
   # send an SMS:
   
@@ -73,8 +73,18 @@ handset-dependent, but supported by all reasonably new mobiles).
 You must create an instance of SMS::AQL, passing it the username and
 password of your AQL account:
 
+  $sms = new SMS::AQL({ username => 'fred', password => 'bloggs' });
+  
+You can pass extra parameters (such as the default sender number to use)
+like so:
 
-  $sms = new SMS::AQL( username => 'fred', password => 'bloggs' );
+  $sms = new SMS::AQL({
+    username => 'fred', 
+    password => 'bloggs',
+    options  => {
+        sender => '+44123456789012'
+    }
+  });
 
 
 =cut
@@ -98,7 +108,11 @@ sub new {
     
     # remember the username and password
     ($self->{user}, $self->{pass}) = 
-        ($params->{'username'}, $params->{'password'});
+        ($params->{username}, $params->{password});
+        
+        
+    # remember extra params:
+    $self->{options} = $params->{options};
     
     # the list of servers we can try:
     $self->{servers} = ['gw1.sms2email.com', 'gw11.sms2email.com',
@@ -143,8 +157,6 @@ Examples:
 =cut
 
 sub send_sms {
-# send the greeting to the number specified.  Returns true on success, false
-# if it fails (due to a HTTP request failing, or the SMS gateway saying no)
 
     my ($self, $to, $text, $opts) = @_;
     
@@ -154,18 +166,21 @@ sub send_sms {
     my %postdata = (
         'username' => $self->{user}, 
         'password' => $self->{pass},
-        'orig'     => $opts->{sender} || $self->{sender}, 
+        'orig'     => $opts->{sender} || $self->{options}->{sender}, 
         'to_num'   => $to,
         'message'  => $text,
     );
     
-        
+    if (!$postdata{orig}) {
+        warn "Cannot send message without sender specified\n";
+        return;
+    }
+    
     # try the request to each sever in turn, stop as soon as one succeeds.
-    while (my $server = shift @{$self->{servers}})
-        {
+    for my $server (sort { (-1,1)[rand 2] } @{$self->{servers}} ) {
         
-        my $response = $self->{ua}->post("http://$server/sms/postmsg.php",
-            \%postdata);
+        my $response = $self->{ua}->post(
+            "http://$server/sms/postmsg-concat.php", \%postdata);
     
         next unless ($response->is_success);  # try next server if we failed.
     
@@ -177,28 +192,30 @@ sub send_sms {
         # version out the door.
         $self->{last_response} = $resp;
         
-        for ($resp)
-            {
-            if (/AQSMS-OK/)
-                {
+        for ($resp) {
+            
+            if (/AQSMS-OK/) {
                 # the aqsms gateway, he say YES
                 return wantarray?
                     (1, 'OK') : 1;
-                } elsif (/AQSMS-NOCREDIT/) {
+            
+            } elsif (/AQSMS-NOCREDIT/) {
                 # uh-oh, we're out of credit!
                 return wantarray?
                     (0, 'Out of credits') : 0;
-                } elsif (/AQSMS-INVALID_DESTINATION/) {
+            
+            } elsif (/AQSMS-INVALID_DESTINATION/) {
                 return wantarray?
                     (0, 'Invalid destination') : 0;
-                } else {
+            
+            } else {
                 # didn't recognise the response
                 return wantarray?
                     (0, 'Unrecognised response from server') : 0;
-                }
             }
+        }
     
-        } # end of while loop through servers
+    } # end of while loop through servers
         
     # if we reach this point without returning, then we tried all 4 SMS gateway
     # servers and couldn't connect to any of them - this is pretty unlikely, if
@@ -246,7 +263,6 @@ sub last_error {
 
     shift->{last_error}
 
-
 } 
 
 
@@ -262,8 +278,6 @@ sub _canonical_number {
     return $num;
     
 }
-
-
 
 
 

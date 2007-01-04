@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+# $Id$
+
 # Simple usage example for SMS::AQL
 
 # NOTE - the test username and password is for testing SMS::AQL *only*,
@@ -31,3 +33,6 @@ printf "Status: %s,  Reason: %s, Server response: %s\n",
     $why,
     $sender->{last_response};
 
+
+# note: we could also have specified the sender when we created an instance of
+# SMS::AQL, to save passing it to the send_sms() call - see the POD docs.
