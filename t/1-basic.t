@@ -5,7 +5,7 @@
 
 use strict;
 use warnings;
-
+use Test::More tests => 4;
 # NOTE - the test username and password is for testing SMS::AQL *only*,
 # not to be used for any other purpose.  It is given a small amount of
 # credit now and then, if you try to abuse it, it just won't get given
@@ -13,7 +13,6 @@ use warnings;
 my $test_user = 'sms-aql-test';
 my $test_pass = 'sms-aql-test';
 
-use Test::More qw(no_plan);
 
 use lib '../lib/';
 use_ok('SMS::AQL');
@@ -25,9 +24,22 @@ ok(my $sender = new SMS::AQL({username => $test_user, password => $test_pass}),
     
 ok(ref $sender eq 'SMS::AQL', 
     '$sender is an instance of SMS::AQL');
-    
-# have to send it to STDERR, as Test::Harness swallows our STDOUT...
-print STDERR qq[
+
+my $balance = $sender->credit();
+
+ok($balance =~ /^[0-9]+$/, 'got account balance');
+
+
+=begin
+
+TODO: refactor this bigtime!  I've disabled the sending test because I don't
+want to demand the destination number here if it's an automated install
+
+
+my $test_to;
+if ($balance) {
+    # have to send it to STDERR, as Test::Harness swallows our STDOUT...
+    print STDERR qq[
 To properly test SMS::AQL, I need a test number to send a text message to.
 Please supply a mobile number, and I will try to send a text message to it.
 If you'd rather not and wish to skip the tests, just leave it blank (or
@@ -35,8 +47,11 @@ enter any "non-true" value).
 
 Mobile number: ?> ];
 
-my $test_to = <>;
-
+    $test_to = <>;
+} else {
+    print STDERR "Skipping sending test - test account has no credit left\n";
+    $test_to = '';
+}
 
 # OK, a little crufty here with the double skip blocks, but we want
 # to skip the sending test if the destination number isn't given, and 
@@ -59,3 +74,5 @@ SKIP: {
 
 }
     
+=cut
+

@@ -19,6 +19,11 @@ my $sender = new SMS::AQL({username => $test_user, password => $test_pass});
 
 if (!$sender || ! ref $sender) { die('Failed to instantiate SMS::AQL'); }
 
+
+my $credits = $sender->credit();
+
+print "Account $test_user has $credits credits.\n";
+
 print "Destination: ?> ";
 my $test_to = <>;
 

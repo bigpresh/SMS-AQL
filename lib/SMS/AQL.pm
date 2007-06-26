@@ -7,7 +7,7 @@ package SMS::AQL;
 # $Id$
 
 
-use 5.008007;
+use 5.008000;
 
 use strict;
 use warnings;
@@ -16,7 +16,7 @@ use LWP::UserAgent;
 use HTTP::Request;
 
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 NAME
 
@@ -68,7 +68,11 @@ handset-dependent, but supported by all reasonably new mobiles).
 
 
 
-=head1 INITIALISATION
+=head1 METHODS
+
+=over
+
+=item new (constructor)
 
 You must create an instance of SMS::AQL, passing it the username and
 password of your AQL account:
@@ -85,7 +89,6 @@ like so:
         sender => '+44123456789012'
     }
   });
-
 
 =cut
 
@@ -125,9 +128,6 @@ sub new {
 }
 
 
-=head1 METHODS
-
-=over
 
 =item send_sms($to, $message [, \%params])
 
@@ -226,7 +226,47 @@ sub send_sms {
 
 
 
-=item last_result()
+=item credit()
+
+Returns the current account credit
+
+=cut
+
+sub credit {
+
+    my $self = shift;
+
+    # assemble the data we need to POST to the server:
+    my %postdata = (
+        'username' => $self->{user}, 
+        'password' => $self->{pass},
+        'cmd'      => 'credit',
+    );
+    
+    # try the request to each sever in turn, stop as soon as one succeeds.
+    for my $server (sort { (-1,1)[rand 2] } @{$self->{servers}} ) {
+        
+        my $response = $self->{ua}->post(
+            "http://$server/sms/postmsg.php", \%postdata);
+    
+        next unless ($response->is_success);  # try next server if we failed.
+    
+        my $resp = $response->content;
+        
+        my ($credit) = $response->content =~ /AQSMS-CREDIT=(\d+)/;
+        
+        return $credit;
+        
+   }
+    
+
+} # end of sub credit
+
+
+
+
+
+=item last_error()
 
 Returns the last result code received from the AQL
 gateway.

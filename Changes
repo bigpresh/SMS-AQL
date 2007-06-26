@@ -1,25 +1,32 @@
 Revision history for Perl extension SMS::AQL.
 
-0.02  04/01/2007
-Fix stupid, stupid bug #24201 - don't remove servers
-from the list of servers, unless we fail to send a
-message.  Previously, each instance of SMS::AQL could
-only send 4 messages in a row before starting to fail.
-Obviously, passed all tests, only showed up in real
-usage.  Wibble.  Also some minor style problems
-cleared up.
+0.03  26/06/2007
+Previous versions had use 5.008007 in the Makefile, where I forgot to
+change it.  There's nothing funky in this module that should require
+5.8.7, 5.8.0 should be good enough.  Thanks to Nicola W for pointing
+this out.
 
-Important: constructor now takes a hashref of params to
-provide for future expansion needs.
+Also added new credit() method to return the number of message credits
+available on the account.
+
+
+0.02  04/01/2007
+Fix stupid, stupid bug #24201 - don't remove servers from the list of 
+servers, unless we fail to send a message.  Previously, each instance 
+of SMS::AQL could only send 4 messages in a row before starting to fail.
+Obviously, passed all tests, only showed up in real usage.  Wibble.  
+Also some minor style problems cleared up.
+
+Important: constructor now takes a hashref of params to provide for 
+future expansion needs.
 
 0.01  10/08/2006
-development starts... pre-alpha version started life as
-Net::AQSMS::Send, name SMS::AQL was then agreed after
-brief discussion with modules@perl.org guys, Brian in
-particular - thanks for your input Brian.
+development starts... pre-alpha version started life as Net::AQSMS::Send, 
+name SMS::AQL was then agreed after brief discussion with modules@perl.org 
+guys, Brian in particular - thanks for your input Brian.
 
-Initial version is quite limited, but tested and works
-well for me.  Not tested with non-UK destination numbers.
+Initial version is quite limited, but tested and works well for me.  
+Not tested with non-UK destination numbers.
 
 
 
