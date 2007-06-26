@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 
-# Test POD correctness and coverage for SMS::AQL
+# Test POD correctness for SMS::AQL
 #
-# $Id: SMS-AQL.t 81 2007-01-04 22:25:47Z davidp $
+# $Id$
 
 use strict;
 use Test::More;

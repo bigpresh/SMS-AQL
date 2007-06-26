@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Test script for Net::AQSMS::Send
+# Basic operational tests for SMS::AQL
 # $Id$
 
 use strict;
