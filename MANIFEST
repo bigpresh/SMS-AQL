@@ -7,5 +7,6 @@ eg/example.pl
 t/1-basic.t
 t/2-pod.t
 t/3-pod-coverage.t
+t/4-mock.t
 lib/SMS/AQL.pm
 META.yml                                 Module meta-data (added by MakeMaker)

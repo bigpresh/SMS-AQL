@@ -1,5 +1,14 @@
 Revision history for Perl extension SMS::AQL.
 
+0.04 16/07/2007
+New release incorporating several improvements kindly submitted by
+Ton Voon at Altinity (http://www.altinity.com/) - thanks Ton!  There's
+numerous documentation improvements, better parsing of server responses,
+and a new test script using Test::MockObject to exercise the module
+code without actually interacting with the AQL servers or sending 
+messages.  Nice work Ton, thanks for your contribution!
+
+
 0.03  26/06/2007
 Previous versions had use 5.008007 in the Makefile, where I forgot to
 change it.  There's nothing funky in this module that should require

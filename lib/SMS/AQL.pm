@@ -16,7 +16,10 @@ use LWP::UserAgent;
 use HTTP::Request;
 
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
+
+my $UNRECOGNISED_RESPONSE = "Unrecognised response from server";
+my $NO_RESPONSES = "Could not get valid response from any server";
 
 =head1 NAME
 
@@ -123,6 +126,9 @@ sub new {
                 
     # remember the last server response we saw:
     $self->{last_response} = '';
+    $self->{last_response_text} = '';
+    $self->{last_error} = '';
+    $self->{last_status} = 0;
         
     return $self;	
 }
@@ -142,6 +148,7 @@ first element being 1 for success or 0 for fail, and the second
 being a message indicating why the message send operation
 failed.
 
+You must set a sender, either at new or for each send_sms call.
 
 Examples:
     
@@ -172,8 +179,9 @@ sub send_sms {
     );
     
     if (!$postdata{orig}) {
-        warn "Cannot send message without sender specified\n";
-        return;
+	$self->{last_error} = "Cannot send message without sender specified";
+	warn($self->{last_error});
+        return 0;
     }
     
     # try the request to each sever in turn, stop as soon as one succeeds.
@@ -186,49 +194,30 @@ sub send_sms {
     
         my $resp = $response->content;
     
-        # this code wasn't too bad to start with but has now bloated into
-        # cruftitude... will refactor this into a half decent lookup table
-        # in the next version, but it works for now, to get the initial
-        # version out the door.
-        $self->{last_response} = $resp;
-        
-        for ($resp) {
-            
-            if (/AQSMS-OK/) {
-                # the aqsms gateway, he say YES
-                return wantarray?
-                    (1, 'OK') : 1;
-            
-            } elsif (/AQSMS-NOCREDIT/) {
-                # uh-oh, we're out of credit!
-                return wantarray?
-                    (0, 'Out of credits') : 0;
-            
-            } elsif (/AQSMS-INVALID_DESTINATION/) {
-                return wantarray?
-                    (0, 'Invalid destination') : 0;
-            
-            } else {
-                # didn't recognise the response
-                return wantarray?
-                    (0, 'Unrecognised response from server') : 0;
-            }
-        }
+	$self->_check_aql_response_code($response);
+
+	return wantarray ? ($self->last_status, $self->last_response_text) : $self->last_status;
     
     } # end of while loop through servers
         
     # if we reach this point without returning, then we tried all 4 SMS gateway
     # servers and couldn't connect to any of them - this is pretty unlikely, if
     # it does happen it's almost certainly our own connectivity that's gone!
-    return 'FAIL|NOSERVERS';
+    $self->_set_no_valid_response;
+    return wantarray ? (0, $self->last_error) : 0;
 	
 } # end of sub send_sms
 
 
+sub _set_no_valid_response {
+	my $self = shift;
+	$self->{last_error} = $NO_RESPONSES;
+	$self->{last_status} = 0;
+}
 
 =item credit()
 
-Returns the current account credit
+Returns the current account credit. Returns undef if any errors occurred
 
 =cut
 
@@ -251,7 +240,7 @@ sub credit {
     
         next unless ($response->is_success);  # try next server if we failed.
     
-        my $resp = $response->content;
+	$self->_check_aql_response_code($response);
         
         my ($credit) = $response->content =~ /AQSMS-CREDIT=(\d+)/;
         
@@ -259,25 +248,44 @@ sub credit {
         
    }
     
-
+   $self->_set_no_valid_response;
+   return undef;
 } # end of sub credit
 
 
 
+=item last_status()
 
+Returns the status of the last command: 1 = OK, 0 = ERROR.
+
+=cut
+
+sub last_status { shift->{last_status} }
 
 =item last_error()
 
+Returns the error message of the last failed command.
+
+=cut
+
+sub last_error { shift->{last_error} }
+
+=item last_response()
+
+Returns the raw response from the AQL gateway.
+
+=cut
+
+sub last_response { shift->{last_response} }
+
+=item last_response_text()
+
 Returns the last result code received from the AQL
-gateway.
+gateway in a readable format.
 
 Possible codes are:
 
 =over
-
-=item AQSMS-NOAUTHDETAILS
-
-The username and password were not supplied
 
 =item AQSMS-AUTHERROR
 
@@ -285,11 +293,11 @@ The username and password supplied were incorrect
 
 =item AQSMS-NOCREDIT
 
-The account specified did not have sufficient credit
+Out of credits (The account specified did not have sufficient credit)
 
 =item AQSMS-OK
 
-The message was queued on our system successfully
+OK (The message was queued on our system successfully)
 
 =item AQSMS-NOMSG
 
@@ -299,11 +307,56 @@ No message or no destination number were supplied
 
 =cut
 
-sub last_error {
+my %lookup = (
+	"AQSMS-AUTHERROR" => { 
+		text => "The username and password supplied were incorrect", 
+		status => 0,
+		},
+	"AQSMS-NOCREDIT" => { 
+		#text => "The account specified did not have sufficient credit", 
+		text => "Out of credits",
+		status => 0,
+		},
+	"AQSMS-OK" => { 
+		#text => "The message was queued on our system successfully",
+		text => "OK",
+		status => 1,
+		},
+	"AQSMS-CREDIT" => {
+		#text is filled out in credit sub
+		status => 1,
+		},
+	"AQSMS-NOMSG" => { 
+		text => "No message or no destination number were supplied", 
+		status => 0,
+		},
+	"AQSMS-INVALID_DESTINATION" => { 
+		text => "Invalid destination", 
+		status => 0,
+		},
 
-    shift->{last_error}
+	# This one looks deprecated. A 401 error appears if username or password is missing from request
+	# but this module should always add that, so not needed to check against
+	#"AQSMS-NOAUTHDETAILS" => { text => "The username and password were not supplied", error => 1 },
+	);
 
-} 
+sub _check_aql_response_code {
+	my ($self, $res) = @_;
+	my $r = $self->{last_response} = $res->content;
+	$r =~ s/^([\w\-]+).*/$1/;				# Strip everything after initial alphanumerics and hyphen
+	if (exists $lookup{$r}) {
+		$self->{last_response_text} = $lookup{$r}->{text};
+		$self->{last_status} = $lookup{$r}->{status};
+	} else {
+		$self->{last_response_text} = "$UNRECOGNISED_RESPONSE: $r";
+		$self->{last_status} = 0;
+	}
+	unless ($self->last_status) {
+		$self->{last_error} = $self->{last_response_text};
+	}
+}
+
+sub last_response_text { shift->{last_response_text} }
 
 
 # fix up the number
@@ -343,11 +396,17 @@ All bug reports, feature requests, patches etc welcome.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006 by David Precious
+Copyright (C) 2006-2007 by David Precious
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.7 or,
 at your option, any later version of Perl 5 you may have available.
 
+
+=head1 THANKS
+
+ - to Adam Beaumount and the AQL team for their assistance
+ - to Ton Voon at Altinity (http://www.altinity.com/) for contributing
+   several improvements
 
 =cut

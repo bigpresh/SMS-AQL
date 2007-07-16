@@ -12,13 +12,15 @@ my $test_user = 'sms-aql-test';
 my $test_pass = 'sms-aql-test';
 
 use warnings;
-use lib './lib/';
+use lib '../lib/';
 use SMS::AQL;
 
 my $sender = new SMS::AQL({username => $test_user, password => $test_pass});
 
 if (!$sender || ! ref $sender) { die('Failed to instantiate SMS::AQL'); }
 
+
+print "SMS::AQL $SMS::AQL::VERSION loaded OK\n";
 
 my $credits = $sender->credit();
 

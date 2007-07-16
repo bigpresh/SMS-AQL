@@ -1,4 +1,4 @@
-SMS::AQL version 0.03
+SMS::AQL version 0.04
 ===========================
 
 SMS::AQL is a simple module which provides a clean
@@ -40,11 +40,18 @@ This module requires these other modules and libraries:
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2006 by David Precious
+Copyright (C) 2006-2007 by David Precious
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.7 or,
 at your option, any later version of Perl 5 you may have available.
+
+
+THANKS
+
+ - to Adam Beaumount and the AQL team for their assistance
+ - to Ton Voon at Altinity (http://www.altinity.com/) for contributing
+   several improvements
 
 
 $Id$
