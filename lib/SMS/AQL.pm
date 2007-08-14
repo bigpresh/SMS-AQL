@@ -16,7 +16,7 @@ use LWP::UserAgent;
 use HTTP::Request;
 
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 my $UNRECOGNISED_RESPONSE = "Unrecognised response from server";
 my $NO_RESPONSES = "Could not get valid response from any server";
@@ -36,7 +36,7 @@ SMS::AQL - Perl extension to send SMS text messages via AQ's SMS service
     password => 'password'
   });
 
-  # default parameters can be passed like so:
+  # other parameters can be passed like so:
   $sms = new SMS::AQL({
     username => 'username',
     password => 'password',
@@ -82,19 +82,19 @@ password of your AQL account:
 
   $sms = new SMS::AQL({ username => 'fred', password => 'bloggs' });
   
-You can pass extra parameters (such as the default sender number to use)
-like so:
+You can pass extra parameters (such as the default sender number to use,
+or a proxy server) like so:
 
   $sms = new SMS::AQL({
     username => 'fred', 
     password => 'bloggs',
     options  => {
-        sender => '+44123456789012'
-    }
+        sender => '+44123456789012',
+        proxy  => 'http://user:pass@host:port/',
+    },
   });
 
 =cut
-
 
 sub new {
 
@@ -111,6 +111,12 @@ sub new {
     # get an LWP user agent ready
     $self->{ua} = new LWP::UserAgent;
     $self->{ua}->agent("SMS::AQL/$VERSION");
+    
+    # configure user agent to use a proxy, if requested:
+    # TODO: validate supplied proxy details
+    if ($params->{options}->{proxy}) {
+        $self->{ua}->proxy(['http','https'] => $params->{options}->{proxy});
+    }
     
     # remember the username and password
     ($self->{user}, $self->{pass}) = 

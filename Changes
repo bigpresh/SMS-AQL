@@ -1,5 +1,16 @@
 Revision history for Perl extension SMS::AQL.
 
+0.05 14/08/2007
+Added support for connecting via a proxy - simply supply the proxy URL in
+the options hashref when instantiating the object:
+my $sms = new SMS::AQL({
+    username => 'user',
+    password => 'pass',
+    options => {
+        proxy => 'http://user:pass@host:port/',
+    }
+});
+
 0.04 16/07/2007
 New release incorporating several improvements kindly submitted by
 Ton Voon at Altinity (http://www.altinity.com/) - thanks Ton!  There's

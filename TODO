@@ -1,10 +1,7 @@
 
 TODO for SMS::AQL
 
-
  - new method to send message to multiple recipients at once
-
- - method to retrieve current account balance
 
  - option to enable/disable concatenation (messages > 160 chars) and set
    maximum length (would be useful just in case some script error in the

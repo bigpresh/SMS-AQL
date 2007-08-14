@@ -16,11 +16,6 @@ I contacted AQL to discuss doing this and ask for some test SMS
 credits to assist with testing the module, and they were most
 helpful - thanks guys, you're a top company :)
 
-This initial release is fairly limited, but works, at least for UK
-mobiles... I haven't had the opportunity to test it with any non-UK
-mobiles.  If anybody from outside of the UK wants to be kind enough
-to help test it, please contact me.
-
 
 INSTALLATION
 
@@ -37,6 +32,28 @@ DEPENDENCIES
 This module requires these other modules and libraries:
 
   LWP
+
+
+PROXY SUPPORT
+
+If you provide a proxy setting in the options when instantiating the object,
+it will be passed through to LWP.  If the proxy requires authentication, then
+supply the username and password in the proxy URL, like so:
+
+ http://user:pass@host:port/
+ 
+If you don't need a username and password, leave them out.
+
+An example:
+
+my $sms = new SMS::AQL({
+    username => 'user',
+    password => 'pass',
+    options => {
+        proxy => 'http://user:pass@host:port/',
+    }
+});
+
 
 COPYRIGHT AND LICENCE
 
