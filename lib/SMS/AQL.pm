@@ -7,16 +7,15 @@ package SMS::AQL;
 # $Id$
 
 
-use 5.008000;
+use 5.005000;
 
 use strict;
-use warnings;
 
 use LWP::UserAgent;
 use HTTP::Request;
+use vars qw($VERSION);
 
-
-our $VERSION = '0.05';
+$VERSION = '0.06';
 
 my $UNRECOGNISED_RESPONSE = "Unrecognised response from server";
 my $NO_RESPONSES = "Could not get valid response from any server";

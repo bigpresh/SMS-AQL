@@ -8,7 +8,6 @@
 # $Id$
 
 use strict;
-use warnings;
 
 use Test::More;
 use LWP::UserAgent;
