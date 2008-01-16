@@ -1,14 +1,14 @@
  --- #YAML:1.0
  name: SMS-AQL
  abstract: Perl extension to send SMS text messages via AQ's SMS service
- version: 0.07
+ version: 0.08
  author:
    - David Precious <davidp@preshweb.co.uk>
  license: perl
  distribution_type: module
  requires:
    LWP::UserAgent: 0
-   perl: 5.005_03
+   perl: 5.005
  build_requires:
    Test: 0
  meta-spec:

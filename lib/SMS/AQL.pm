@@ -15,7 +15,7 @@ use LWP::UserAgent;
 use HTTP::Request;
 use vars qw($VERSION);
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 my $UNRECOGNISED_RESPONSE = "Unrecognised response from server";
 my $NO_RESPONSES = "Could not get valid response from any server";
@@ -176,11 +176,11 @@ sub send_sms {
 
     # assemble the data we need to POST to the server:
     my %postdata = (
-        'username' => $self->{user}, 
-        'password' => $self->{pass},
-        'orig'     => $opts->{sender} || $self->{options}->{sender}, 
-        'to_num'   => $to,
-        'message'  => $text,
+        'username'    => $self->{user}, 
+        'password'    => $self->{pass},
+        'originator'  => $opts->{sender} || $self->{options}->{sender}, 
+        'destination' => $to,
+        'message'     => $text,
     );
     
     if (!$postdata{orig}) {
@@ -193,7 +193,7 @@ sub send_sms {
     for my $server (sort { (-1,1)[rand 2] } @{$self->{servers}} ) {
         
         my $response = $self->{ua}->post(
-            "http://$server/sms/postmsg-concat.php", \%postdata);
+            "http://$server/sms/sms_gw.php", \%postdata);
     
         next unless ($response->is_success);  # try next server if we failed.
     
