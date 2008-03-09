@@ -10,12 +10,13 @@ package SMS::AQL;
 use 5.005000;
 
 use strict;
+use warnings;
 
 use LWP::UserAgent;
 use HTTP::Request;
 use vars qw($VERSION);
 
-$VERSION = '0.08';
+$VERSION = '0.09';
 
 my $UNRECOGNISED_RESPONSE = "Unrecognised response from server";
 my $NO_RESPONSES = "Could not get valid response from any server";
@@ -54,6 +55,9 @@ SMS::AQL - Perl extension to send SMS text messages via AQ's SMS service
   
   # params for this send operation only can be supplied:
   $sms->send_sms($to, $msg, { sender => 'bob the builder' });
+  
+  # make a phone call and read out a message:
+  my ($ok, $why) = $sms->voice_push($to, $msg);
 
   
 
@@ -126,9 +130,13 @@ sub new {
     $self->{options} = $params->{options};
     
     # the list of servers we can try:
-    $self->{servers} = ['gw1.sms2email.com', 'gw11.sms2email.com',
-                'gw2.sms2email.com', 'gw22.sms2email.com'];
-                
+    $self->{sms_servers} = [qw(
+        gw1.sms2email.com    gw11.sms2email.com
+        gw2.sms2email.com    gw22.sms2email.com
+    )];
+    
+    $self->{voice_servers} = ['vp1.aql.com'];
+    
     # remember the last server response we saw:
     $self->{last_response} = '';
     $self->{last_response_text} = '';
@@ -189,36 +197,127 @@ sub send_sms {
         return 0;
     }
     
-    # try the request to each sever in turn, stop as soon as one succeeds.
-    for my $server (sort { (-1,1)[rand 2] } @{$self->{servers}} ) {
-        
-        my $response = $self->{ua}->post(
-            "http://$server/sms/sms_gw.php", \%postdata);
+    my $response = 
+        $self->_do_post($self->{sms_servers}, '/sms/sms_gw.php', \%postdata);
     
-        next unless ($response->is_success);  # try next server if we failed.
-    
-        my $resp = $response->content;
-    
-	$self->_check_aql_response_code($response);
+    if ($response && $response->is_success) {
+        $self->_check_aql_response_code($response);
+        return wantarray ? 
+            ($self->last_status, $self->last_response_text) : $self->last_status;
+    }
 
-	return wantarray ? ($self->last_status, $self->last_response_text) : $self->last_status;
-    
-    } # end of while loop through servers
-        
-    # if we reach this point without returning, then we tried all 4 SMS gateway
-    # servers and couldn't connect to any of them - this is pretty unlikely, if
-    # it does happen it's almost certainly our own connectivity that's gone!
+    # OK, we got no response from any of the servers we tried:
     $self->_set_no_valid_response;
     return wantarray ? (0, $self->last_error) : 0;
 	
 } # end of sub send_sms
 
 
-sub _set_no_valid_response {
-	my $self = shift;
-	$self->{last_error} = $NO_RESPONSES;
-	$self->{last_status} = 0;
+
+=item voice_push($to, $message [, \%params])
+
+Make a telephone call to the given phone number, using speech synthesis to
+read out the message supplied.
+
+$to and $message are the destination telephone number and the message to read
+out.  The third optional parameter is a hashref of options to modify the
+behaviour of this method - currently, the only option is:
+
+=over 4
+
+=item skipintro
+
+Skips the introductory message that AQL's system normally reads out. (If you
+use this, it's recommended to add your own introduction to your message, for
+example "This is an automated call from ACME Inc...")
+
+=back
+
+If called in scalar context, returns 1 if the message was sent, 0 if it wasn't.
+
+If called in list context, returns a two-element list, the first element being 
+1 for success or 0 for fail, and the second being a message indicating why the 
+operation failed.
+
+=cut
+
+sub voice_push {
+
+    my ($self, $to, $text, $opts) = @_;
+    
+    my %postdata = (
+        username    => $self->{user}, 
+        password    => $self->{pass},
+        msisdn      => $to,
+        message     => $text,
+    );
+    
+    if ($opts->{skipintro}) {
+        $postdata{skipintro} = 1;
+    }
+    
+    my $response = $self->_do_post(
+        $self->{voice_servers}, '/voice_push.php', \%postdata
+    );
+    
+    if ($response && $response->is_success) {
+        my $status = (split /\n/, $response->content)[0];
+        
+        my %response_lookup = (
+            VP_OK => {
+                status  => 1,
+                message => 'Success',
+            },
+            VP_ERR_NOTOMOBNUM => {
+                status  => 0,
+                message => 'Telephone number not provided',
+            },
+            VP_ERR_INVALID_MOBNUM => {
+                status  => 0,
+                message => 'Invalid telephone number',
+            },
+            VP_ERR_NOCREDIT => {
+                status  => 0,
+                message => 'Insufficient credit',
+            },
+            VP_ERR_INVALIDAUTH => {
+                status  => 0,
+                message => 'Username/password rejected',
+            },
+            VP_ERR_NOAUTH => {
+                # we should never see this, as we fail to create SMS::AQL
+                # instance without a username and password
+                status  => 0,
+                message => 'Username/password not supplied',
+            },
+            VP_ERR_NOMSG => {
+                status  => 0,
+                message => 'Message not provided',
+            },
+        );
+        
+        my $response_details = $response_lookup{$status};
+        
+        if (!$response_details) {
+            warn "Unrecognised status '$status' from AQL";
+            $response_details = { 
+                status  => 0, 
+                message => 'Unrecognised response',
+            };
+        }
+        
+        return wantarray ? 
+            @$response_details{qw(status message)} : $response_details->{status};
+            
+    } else {
+        # no response received:
+        return wantarray ?
+            (0, 'No response from AQL servers') : 0;
+    }
+
 }
+
+
 
 =item credit()
 
@@ -245,7 +344,7 @@ sub credit {
     
         next unless ($response->is_success);  # try next server if we failed.
     
-	$self->_check_aql_response_code($response);
+        $self->_check_aql_response_code($response);
         
         my ($credit) = $response->content =~ /AQSMS-CREDIT=(\d+)/;
         
@@ -339,16 +438,20 @@ my %lookup = (
 		text => "Invalid destination", 
 		status => 0,
 		},
+);
 
-	# This one looks deprecated. A 401 error appears if username or password is missing from request
-	# but this module should always add that, so not needed to check against
-	#"AQSMS-NOAUTHDETAILS" => { text => "The username and password were not supplied", error => 1 },
-	);
+sub last_response_text { shift->{last_response_text} }
+
+
+# private implementation methods follow - you are advised not to call these
+# directly, as their behaviour or even very existence could change in future
+# versions.
 
 sub _check_aql_response_code {
 	my ($self, $res) = @_;
 	my $r = $self->{last_response} = $res->content;
-	$r =~ s/^([\w\-]+).*/$1/;				# Strip everything after initial alphanumerics and hyphen
+    # Strip everything after initial alphanumerics and hyphen:
+	$r =~ s/^([\w\-]+).*/$1/;
 	if (exists $lookup{$r}) {
 		$self->{last_response_text} = $lookup{$r}->{text};
 		$self->{last_status} = $lookup{$r}->{status};
@@ -361,7 +464,40 @@ sub _check_aql_response_code {
 	}
 }
 
-sub last_response_text { shift->{last_response_text} }
+
+
+# given an arrayref of possible servers, an URL and a hashref of POST data,
+# makes a POST request to each server in turn, stopping as soon as a successful
+# response is received and returning the LWP response object.
+sub _do_post {
+
+    my ($self, $servers, $url, $postdata) = @_;
+    
+    if (ref $servers ne 'ARRAY') {
+        die "_do_post expects an arrayref of servers to try";
+    }
+    
+    if (ref $postdata ne 'HASH') {
+        die "_do_post expects a hashref of post data";
+    }
+    
+    if (!$url || ref $url) {
+        die "_do_post expects an URL";
+    }
+    
+    for my $server (sort { (-1,1)[rand 2] } @{$servers} ) {
+        
+        my $response = $self->{ua}->post(
+            "http://$server/$url", $postdata);
+            
+        if ($response->is_success) {
+            return $response;
+        }
+    }
+    
+    # if we get here, none of the servers we asked responded:
+    return;
+}
 
 
 # fix up the number
@@ -374,10 +510,14 @@ sub _canonical_number {
     $num =~ s/^0/+44/;
     
     return $num;
-    
 }
 
 
+sub _set_no_valid_response {
+    my $self = shift;
+    $self->{last_error} = $NO_RESPONSES;
+    $self->{last_status} = 0;
+}
 
 
 1;
@@ -401,7 +541,7 @@ All bug reports, feature requests, patches etc welcome.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006-2007 by David Precious
+Copyright (C) 2006-2008 by David Precious
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.7 or,
