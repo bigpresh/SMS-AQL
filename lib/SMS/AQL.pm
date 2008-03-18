@@ -16,7 +16,7 @@ use LWP::UserAgent;
 use HTTP::Request;
 use vars qw($VERSION);
 
-$VERSION = '0.09';
+$VERSION = '0.08';
 
 my $UNRECOGNISED_RESPONSE = "Unrecognised response from server";
 my $NO_RESPONSES = "Could not get valid response from any server";
@@ -184,11 +184,11 @@ sub send_sms {
 
     # assemble the data we need to POST to the server:
     my %postdata = (
-        'username'    => $self->{user}, 
-        'password'    => $self->{pass},
-        'originator'  => $opts->{sender} || $self->{options}->{sender}, 
-        'destination' => $to,
-        'message'     => $text,
+        username => $self->{user}, 
+        password => $self->{pass},
+        orig     => $opts->{sender} || $self->{options}->{sender}, 
+        to_num   => $to,
+        message  => $text,
     );
     
     if (!$postdata{orig}) {
@@ -198,7 +198,8 @@ sub send_sms {
     }
     
     my $response = 
-        $self->_do_post($self->{sms_servers}, '/sms/sms_gw.php', \%postdata);
+        $self->_do_post($self->{sms_servers}, 
+            '/sms/postmsg-concat.php', \%postdata);
     
     if ($response && $response->is_success) {
         $self->_check_aql_response_code($response);
@@ -266,7 +267,7 @@ sub voice_push {
         my %response_lookup = (
             VP_OK => {
                 status  => 1,
-                message => 'Success',
+                message => 'OK',
             },
             VP_ERR_NOTOMOBNUM => {
                 status  => 0,
@@ -306,11 +307,18 @@ sub voice_push {
             };
         }
         
+        $self->{last_response} = $status;
+        $self->{last_response_text} = $response_details->{message};
+        $self->{last_status} = $response_details->{status};
+        
         return wantarray ? 
             @$response_details{qw(status message)} : $response_details->{status};
             
     } else {
         # no response received:
+        $self->{last_response} = '';
+        $self->{last_response_text} = 'No response from AQL servers';
+        $self->{last_status} = 0;
         return wantarray ?
             (0, 'No response from AQL servers') : 0;
     }
@@ -337,7 +345,7 @@ sub credit {
     );
     
     # try the request to each sever in turn, stop as soon as one succeeds.
-    for my $server (sort { (-1,1)[rand 2] } @{$self->{servers}} ) {
+    for my $server (sort { (-1,1)[rand 2] } @{$self->{sms_servers}} ) {
         
         my $response = $self->{ua}->post(
             "http://$server/sms/postmsg.php", \%postdata);
@@ -485,8 +493,9 @@ sub _do_post {
         die "_do_post expects an URL";
     }
     
+    $url =~ s{^/}{};
+    
     for my $server (sort { (-1,1)[rand 2] } @{$servers} ) {
-        
         my $response = $self->{ua}->post(
             "http://$server/$url", $postdata);
             

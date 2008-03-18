@@ -18,7 +18,7 @@ plan skip_all => "Test::MockObject::Extends required for mock testing"
     if $@;
     
 # OK, we've got Test::MockObject::Extends, so we can go ahead:
-plan tests => 81;
+plan tests => 92;
 
 
 # NOTE - the test username and password is for testing SMS::AQL *only*,
@@ -123,33 +123,49 @@ like( $warning, '/^Cannot send message without sender specified/', "And right wa
 #
 # Sending tests
 #
-
+diag("Testing sending text, simulating all servers failing");
 $sender->{user} = "test_user";
-$mocked_ua->mock( "post", sub { my $r = Test::MockObject->new(); $r->set_false( "is_success" ); return $r; } );
+$mocked_ua->mock("post", 
+    sub { 
+        my $r = Test::MockObject->new(); 
+        $r->set_false( "is_success" ); 
+        return $r; 
+    }
+);
 $rc = $sender->send_sms( "000", "Test text", { sender => "Altinity" } );
 is($rc, 0, "No server available");
-is($sender->last_error, "Could not get valid response from any server", "Correct error message");
+is($sender->last_error, "Could not get valid response from any server", 
+    "Correct error message");
 is($sender->last_status, 0, "Error state");
 
 
+diag("Testing sending text, simulating success");
 $mocked_ua->mock("post", \&send_text);
-$rc = $sender->send_sms( "000", "Testing text", { sender => "Altinity" } );
+$rc = $sender->send_sms("000", "Testing text", { sender => "Altinity" });
 is($rc, 1, "Successful send");
 is($sender->last_response, "AQSMS-OK:1", "Got reply correctly");
 is($sender->last_response_text, "OK", "Got text correctly");
 is($sender->last_status, 1, "OK state");
 
 my $message;
-($rc, $message) = $sender->send_sms( "000", "Testing text", { sender => "Altinity" } );
+($rc, $message) = 
+    $sender->send_sms("000", "Testing text", { sender => "Altinity" });
 is($rc, 1, "Successful send on an array interface");
 is($message, "OK", "With right message");
 is($sender->last_status, 1, "OK state");
 
 sub send_text {
 	my ($self, $server, $postdata) = @_;
-	my $expected = { username => "test_user", password => "test_password", orig => "Altinity", to_num => "000", message=>"Testing text" };
+	my $expected = { 
+        username => "test_user", 
+        password => "test_password",
+        orig     => "Altinity",
+        to_num   => "000",
+        message => "Testing text"
+    };
 
-	like( $server, '/^http:\/\/.*\/sms\/postmsg-concat.php$/', "Server correct format: $server");
+	like($server, '/^http:\/\/.*\/sms\/postmsg-concat.php$/', 
+        "Server correct format: $server");
 	is_deeply( $postdata, $expected, "Post data correct" );
 
 	my $res = Test::MockObject->new();
@@ -158,11 +174,13 @@ sub send_text {
 	return $res;
 }
 
-
-# I could only get an "AQSMS-INVALID_DESTINATION if I set the to_num as "bob". Setting a mobile number with a digit short,
-# or 000 would still go through as AQSMS-OK. However, SMS::AQL tries to cleanup the number, so using bob 
-# fails because the postdata return "ob" instead. So for now, it makes sense to just put a dummy number in
-# because this is really a test for AQL's server - we just need to make sure we process this reply correctly.
+diag("Testing sending text to invalid destination");
+# I could only get an "AQSMS-INVALID_DESTINATION if I set the to_num as "bob".
+# Setting a mobile number with a digit short, or 000 would still go through 
+# as AQSMS-OK. However, SMS::AQL tries to cleanup the number, so using bob 
+# fails because the postdata return "ob" instead. So for now, it makes sense 
+# to just put a dummy number in because this is really a test for AQL's server
+# - we just need to make sure we process this reply correctly.
 
 $mocked_ua->mock("post", \&send_text_invalid_destination);
 $rc = $sender->send_sms( "000", "Testing text to invalid dest", { sender => "Altinity" } );
@@ -190,23 +208,35 @@ sub send_text_invalid_destination {
 }
 
 
+diag("Testing sending text, simulating failure due to no credit");
 $mocked_ua->mock("post", \&send_text_no_credits);
-$rc = $sender->send_sms( "000", "Testing text to invalid dest", { sender => "Altinity" } );
+$rc = $sender->send_sms(
+    "000", "Testing text to invalid dest", { sender => "Altinity" }
+);
 is($rc, 0, "Expected error");
 is($sender->last_response, "AQSMS-NOCREDIT", "Got expected reply");
 is($sender->last_response_text, "Out of credits", "Got text correctly");
 is($sender->last_status, 0, "Error state");
 
-($rc, $message) = $sender->send_sms( "000", "Testing text to invalid dest", { sender => "Altinity" } );
+($rc, $message) = $sender->send_sms(
+    "000", "Testing text to invalid dest", { sender => "Altinity" }
+);
 is($rc, 0, "Expected error on an array interface");
 is($message, "Out of credits", "With right message");
 is($sender->last_status, 0, "Error state");
 
 sub send_text_no_credits {
 	my ($self, $server, $postdata) = @_;
-	my $expected = { username => "test_user", password => "test_password", orig => "Altinity", to_num => "000", message=>"Testing text to invalid dest" };
+	my $expected = {
+            username => "test_user",
+            password => "test_password",
+            orig     => "Altinity",
+            to_num   => "000",
+            message  => "Testing text to invalid dest"
+    };
 
-	like( $server, '/^http:\/\/.*\/sms\/postmsg-concat.php$/', "Server correct format: $server");
+	like($server, qr{^http://.*/sms/postmsg-concat.php$}, 
+        "Server correct format: $server");
 	is_deeply( $postdata, $expected, "Post data correct" );
 
 	my $res = Test::MockObject->new();
@@ -215,24 +245,39 @@ sub send_text_no_credits {
 	return $res;
 }
 
-
+diag("Testing sending text, simulating unexected response");
 $mocked_ua->mock("post", \&send_text_unexpected_response);
-$rc = $sender->send_sms( "000", "Testing text to invalid dest", { sender => "Altinity" } );
+$rc = $sender->send_sms(
+    "000", "Testing text to invalid dest", { sender => "Altinity" }
+);
 is($rc, 0, "Expected error");
 is($sender->last_response, "AQSMS-NOTPROPER", "Got expected reply");
-is($sender->last_response_text, "Unrecognised response from server: AQSMS-NOTPROPER", "Got text correctly");
+is($sender->last_response_text, 
+    "Unrecognised response from server: AQSMS-NOTPROPER", "Got text correctly");
 is($sender->last_status, 0, "Error state");
 
-($rc, $message) = $sender->send_sms( "000", "Testing text to invalid dest", { sender => "Altinity" } );
+
+diag("Testing sending text, simulating invalid destination");
+($rc, $message) = $sender->send_sms(
+    "000", "Testing text to invalid dest", { sender => "Altinity" }
+);
 is($rc, 0, "Expected error on an array interface");
-is($message, "Unrecognised response from server: AQSMS-NOTPROPER", "With right message");
+is($message, "Unrecognised response from server: AQSMS-NOTPROPER",
+    "With right message");
 is($sender->last_status, 0, "Error state");
 
 sub send_text_unexpected_response {
 	my ($self, $server, $postdata) = @_;
-	my $expected = { username => "test_user", password => "test_password", orig => "Altinity", to_num => "000", message=>"Testing text to invalid dest" };
+	my $expected = {
+        username => "test_user",
+        password => "test_password",
+        orig     => "Altinity",
+        to_num   => "000",
+        message  => "Testing text to invalid dest"
+    };
 
-	like( $server, '/^http:\/\/.*\/sms\/postmsg-concat.php$/', "Server correct format: $server");
+	like($server, qr{^http://.*/sms/postmsg-concat.php$}, 
+        "Server correct format: $server");
 	is_deeply( $postdata, $expected, "Post data correct" );
 
 	my $res = Test::MockObject->new();
@@ -242,15 +287,63 @@ sub send_text_unexpected_response {
 }
 
 
-$mocked_ua->mock( "post", sub { my $r = Test::MockObject->new(); $r->set_false( "is_success" ); return $r; } );
-$rc = $sender->send_sms( "000", "Testing text to invalid dest", { sender => "Altinity" } );
+$mocked_ua->mock( "post", 
+    sub { 
+        my $r = Test::MockObject->new();
+        $r->set_false( "is_success" );
+        return $r; 
+    }
+);
+$rc = $sender->send_sms(
+    "000", "Testing text to invalid dest", { sender => "Altinity" }
+);
 is($rc, 0, "Expected error: No server available");
-is($sender->last_error, "Could not get valid response from any server", "Correct error message");
+is($sender->last_error, "Could not get valid response from any server", 
+    "Correct error message");
 is($sender->last_status, 0, "Error state");
 
-($rc, $message) = $sender->send_sms( "000", "Testing text to invalid dest", { sender => "Altinity" } );
+diag("Testing sending text, simulating all servers failing");
+($rc, $message) = $sender->send_sms(
+    "000", "Testing text to invalid dest", { sender => "Altinity" }
+);
 is($rc, 0, "Expected error: No server available");
-is($message, "Could not get valid response from any server", "With right message");
+is($message, "Could not get valid response from any server", 
+    "With right message");
 is($sender->last_status, 0, "Error state");
 
 
+
+
+# now test new voice push functionality
+diag("Testing voice push functionality");
+$mocked_ua->mock("post", \&voice_push);
+$rc = $sender->voice_push("000", "Testing voice");
+is($rc, 1, 'Successful voice push send');
+is($sender->last_response,      "VP_OK", "Got reply correctly" );
+is($sender->last_response_text, "OK",         "Got text correctly"  );
+is($sender->last_status,         1,           "OK state"            );
+
+my $message;
+($rc, $message) = $sender->voice_push( "000", "Testing voice");
+is($rc,                  1,    "Successful send on an array interface");
+is($message,             "OK", "With right message"                   );
+is($sender->last_status, 1,    "OK state"                             );
+
+sub voice_push {
+    my ($self, $server, $postdata) = @_;
+    my $expected = { 
+        username => "test_user", 
+        password => "test_password", 
+        msisdn   => "000", 
+        message  => "Testing voice" 
+    };
+
+    like( $server, qr{^http://vp\d\.aql\.com/voice_push.php$}, 
+        "Server correct format: $server");
+    is_deeply( $postdata, $expected, "Post data correct" );
+
+    my $res = Test::MockObject->new();
+    $res->set_true( "is_success" );
+    $res->mock( "content", sub { "VP_OK" } );
+    return $res;
+}
