@@ -11,7 +11,7 @@ use 5.005000;
 
 use strict;
 use warnings;
-
+use Carp;
 use LWP::UserAgent;
 use HTTP::Request;
 use vars qw($VERSION);
@@ -240,11 +240,33 @@ If called in list context, returns a two-element list, the first element being
 1 for success or 0 for fail, and the second being a message indicating why the 
 operation failed.
 
+Note that, at the current time, this feature supports only UK telephone numbers.
+
 =cut
 
 sub voice_push {
 
     my ($self, $to, $text, $opts) = @_;
+    
+    if (!$to) {
+        carp "SMS::AQL->voice_push() called without destination number";
+        return;
+    }
+    
+    if (!$text) {
+        carp "SMS::AQL->voice_push() called without message";
+        return;
+    }
+    
+    # voice push only works for UK numbers, and does not accept international
+    # format.  If the number was given in +44 format, turn it into standard
+    # UK format; if it's an non-UK number, don't even try to send.
+    $to =~ s{^\+440?}{0};
+    
+    if ($to !~ m{^0}) {
+        carp "SMS::AQL->voice_push() called with a non-UK telephone number";
+        return;
+    }
     
     my %postdata = (
         username    => $self->{user}, 
@@ -256,6 +278,7 @@ sub voice_push {
     if ($opts->{skipintro}) {
         $postdata{skipintro} = 1;
     }
+    
     
     my $response = $self->_do_post(
         $self->{voice_servers}, '/voice_push.php', \%postdata
@@ -276,6 +299,11 @@ sub voice_push {
             VP_ERR_INVALID_MOBNUM => {
                 status  => 0,
                 message => 'Invalid telephone number',
+            },
+            VP_ERR_NOTGLOBAL => {
+                status  => 0,
+                message => 'Voice push is currently only available for'
+                    . ' UK telephone numbers',
             },
             VP_ERR_NOCREDIT => {
                 status  => 0,
