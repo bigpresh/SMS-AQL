@@ -323,7 +323,6 @@ is($sender->last_response,      "VP_OK", "Got reply correctly" );
 is($sender->last_response_text, "OK",         "Got text correctly"  );
 is($sender->last_status,         1,           "OK state"            );
 
-$message;
 ($rc, $message) = $sender->voice_push( "000", "Testing voice");
 is($rc,                  1,    "Successful send on an array interface");
 is($message,             "OK", "With right message"                   );
