@@ -1,0 +1,58 @@
+#!/usr/bin/perl
+
+# $Id$
+# A simple script to be called by other scripts, taking two parameters - a
+# mobile number and a message.  Reads www.aql.com account details from a YANL
+# file ~/.aql_login, which should contain username, password and sender number
+# (if a sender number is not included, the machine's hostname will be used).
+# (Yes, a sender can be a mobile number, or any text).
+
+use strict;
+use SMS::AQL;
+use Sys::Hostname;
+use YAML;
+
+my $conf_file = $ENV{HOME} . '/.aql_login';
+my $conf = YAML::LoadFile($conf_file)
+    or die "Failed to read $conf_file";
+
+
+my $destination = shift @ARGV;
+my $message = join ' ', @ARGV;
+
+if ($destination !~ /^ \+? \d+ $/x) {
+    show_usage();
+}
+
+my $sms = SMS::AQL->new({
+    username => $conf->{username},
+    password => $conf->{password},
+    options => {
+        sender => $conf->{sender} || Sys::Hostname::hostname(),
+    },
+});
+
+if (!$sms) {
+    die "Failed to get SMS::AQL object";
+}
+
+my ($ok, $why) = $sms->send_sms($destination, $message);
+if ($ok) {
+    exit 0;
+} else {
+    die "Message sending failed: $why";
+}
+
+
+
+
+sub show_usage {
+print <<USAGE;
+
+Usage: $0 destination message
+
+E.g. $0 +44788123456 "Here is a nice message"
+USAGE
+exit;
+}
+

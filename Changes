@@ -1,5 +1,10 @@
 Revision history for Perl extension SMS::AQL.
 
+0.09
+Example script eg/send-sms added (useful for other programs to call, I use
+this from procmail to alert me when specific emails come in).
+
+
 0.08 2008-03-18
 Support for voice push messages (strictly speaking this ought to be in
 a seperate module as it's not an SMS-related feature, but it makes sense
