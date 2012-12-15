@@ -23,7 +23,7 @@ my $NO_RESPONSES = "Could not get valid response from any server";
 
 =head1 NAME
 
-SMS::AQL - Perl extension to send SMS text messages via AQ's SMS service
+SMS::AQL - Perl extension to send SMS text messages via AQL's SMS service
 
 =head1 SYNOPSIS
 
