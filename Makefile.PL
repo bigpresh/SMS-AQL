@@ -10,6 +10,10 @@ WriteMakefile(
     ($] > 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/SMS/AQL.pm',
        AUTHOR         => 'David Precious <davidp@preshweb.co.uk>') : ()),
+    ($ExtUtils::MakeMaker::VERSION >= 6.3002
+      ? ('LICENSE'=> 'perl')
+      : ()),
+
     META_MERGE => {
         resources => {
             repository => 'https://github.com/bigpresh/SMS-AQL',
