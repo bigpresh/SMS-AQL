@@ -131,8 +131,7 @@ sub new {
     
     # the list of servers we can try:
     $self->{sms_servers} = [qw(
-        gw1.sms2email.com    gw11.sms2email.com
-        gw2.sms2email.com    gw22.sms2email.com
+        gw.aql.com
     )];
     
     $self->{voice_servers} = ['vp1.aql.com'];
