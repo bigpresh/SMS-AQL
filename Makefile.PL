@@ -5,7 +5,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME              => 'SMS::AQL',
     VERSION_FROM      => 'lib/SMS/AQL.pm', # finds $VERSION
-    PREREQ_PM         => { LWP::UserAgent => 0 },
+    PREREQ_PM         => { LWP::UserAgent => 0, HTTP::Request => 0 },
     MIN_PERL_VERSION  => 5.005,
     ($] > 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/SMS/AQL.pm',

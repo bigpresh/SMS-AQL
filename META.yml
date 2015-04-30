@@ -8,6 +8,7 @@
  distribution_type: module
  requires:
    LWP::UserAgent: 0
+   HTTP::Request: 0
    perl: 5.005
  build_requires:
    Test: 0
