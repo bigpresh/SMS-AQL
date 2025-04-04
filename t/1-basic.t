@@ -4,7 +4,7 @@
 # $Id$
 
 use strict;
-use Test::More tests => 4;
+use Test::More tests => 3;
 
 # This test account used to exist for testing interactions with AQL's API,
 # but as of around March 2025 it appears not to exist any more.  We mock
